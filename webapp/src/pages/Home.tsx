@@ -11,7 +11,7 @@ export default function Home() {
               Manage and view all users in the system
             </p>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow">
             <UserList />
           </div>

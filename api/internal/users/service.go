@@ -31,7 +31,9 @@ func NewService(queries Querier) *Service {
 func (s *Service) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	// Convert uuid.UUID to pgtype.UUID
 	pgID := pgtype.UUID{}
-	pgID.Scan(id.String())
+	if err := pgID.Scan(id.String()); err != nil {
+		return nil, err
+	}
 
 	dbUser, err := s.queries.GetUserByID(ctx, pgID)
 	if err != nil {

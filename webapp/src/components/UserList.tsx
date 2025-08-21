@@ -13,15 +13,15 @@ export function UserList() {
   const loadUsers = async () => {
     setLoading(true);
     setError(null);
-    
+
     const response = await api.users.list({ limit: 50 });
-    
+
     if (response.error) {
       setError(response.error);
       setLoading(false);
       return;
     }
-    
+
     setUsers(response.data.users);
     setLoading(false);
   };

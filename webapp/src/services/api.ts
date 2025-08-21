@@ -102,12 +102,11 @@ export interface UsersListResponse {
 // API functions
 export const api = {
   health: () => apiClient.get<{ status: string }>('/health'),
-  
+
   users: {
-    list: (params?: { limit?: number; offset?: number }) => 
+    list: (params?: { limit?: number; offset?: number }) =>
       apiClient.get<UsersListResponse>('/api/v1/users', params),
-    
-    getById: (id: string) => 
-      apiClient.get<User>(`/api/v1/users/${id}`),
+
+    getById: (id: string) => apiClient.get<User>(`/api/v1/users/${id}`),
   },
 };
