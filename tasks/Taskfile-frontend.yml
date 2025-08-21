@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  install:
+    desc: Install frontend dependencies
+    dir: ./webapp
+    cmds:
+      - pnpm install 
+    
+  dev:
+    desc: Run frontend development server
+    dir: ./webapp
+    cmds:
+      - pnpm run dev
+
+  build:
+    desc: Build frontend for production
+    dir: ./webapp
+    cmds:
+      - pnpm run build
+
+  preview:
+    desc: Preview production build
+    dir: ./webapp
+    cmds:
+      - pnpm run preview
+
+  lint:
+    desc: Run ESLint
+    dir: ./webapp
+    cmds:
+      - pnpm run lint
+
+  typecheck:
+    desc: Run TypeScript type checking
+    dir: ./webapp
+    cmds:
+      - npx tsc --noEmit
+
+  format:
+    desc: Format code with Prettier
+    dir: ./webapp
+    cmds:
+      - npx prettier --write "src/**/*.{ts,tsx,js,jsx,json,css}"
+  
+  format:check:
+    desc: Format code with Prettier
+    dir: ./webapp
+    cmds:
+      - npx prettier --check "src/**/*.{ts,tsx,js,jsx,json,css}"
+
+  test:
+    desc: Run frontend tests
+    dir: ./webapp
+    cmds:
+      - pnpm run test run
+
+  clean:
+    desc: Clean build artifacts
+    dir: ./webapp
+    cmds:
+      - rm -rf dist node_modules

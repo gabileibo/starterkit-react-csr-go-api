@@ -1,0 +1,163 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+# Load environment variables from .env file if it exists
+dotenv: ['.env']
+
+includes:
+  backend: ./tasks/Taskfile-backend.yml
+  frontend: ./tasks/Taskfile-frontend.yml
+
+tasks:
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list-all
+
+  # Development tasks
+  dev:
+    desc: "Run both backend and frontend development servers"
+    deps: [db:start]
+    cmds:
+      - |-
+        task dev:backend &
+        task dev:frontend &
+        wait
+  
+  dev:backend:
+    desc: "Run the backend development server with live-reloading (starts database if needed)"
+    deps: [db:start]
+    cmds:
+      - echo "Waiting for PostgreSQL to be ready to start migrations..."
+      - sleep 5
+      - task: backend:migrate
+      - task: backend:dev
+  
+  dev:frontend:
+    desc: "Run the frontend development server"
+    cmds:
+      - task: frontend:dev
+
+  # Code generation tasks
+  generate:
+    desc: "Run all code generation"
+    cmds:
+      - task: backend:generate
+
+  # Build tasks
+  build:
+    desc: "Build the production binary"
+    cmds:
+      - task: backend:build
+
+  # Test tasks
+  test:
+    desc: "Run all tests (backend and frontend)"
+    cmds:
+      - task: backend:test
+      - task: frontend:test
+
+
+  # Linting and formatting
+  lint:
+    desc: "Run all linters (backend and frontend)"
+    cmds:
+      - task: backend:lint
+      - task: frontend:lint
+
+  format:
+    desc: "Format all code (backend and frontend)"
+    cmds:
+      - task: backend:format
+      - task: frontend:format
+
+
+  # Docker Compose tasks
+  db:start:
+    desc: "Start PostgreSQL database using Docker Compose"
+    cmds:
+      - docker-compose up -d postgres
+      - echo "Waiting for PostgreSQL to be ready..."
+      - sleep 5
+    status:
+      - docker-compose ps postgres | grep -q "Up"
+
+  db:stop:
+    desc: "Stop PostgreSQL database"
+    cmds:
+      - docker-compose stop postgres
+
+  db:restart:
+    desc: "Restart PostgreSQL database"
+    cmds:
+      - task: db:stop
+      - task: db:start
+
+  db:logs:
+    desc: "Show PostgreSQL database logs"
+    cmds:
+      - docker-compose logs -f postgres
+
+  db:shell:
+    desc: "Connect to PostgreSQL database shell"
+    cmds:
+      - docker-compose exec postgres psql -U postgres -d starterkit
+
+  db:seed:
+    desc: "Seed the database with sample data"
+    cmds:
+      - echo "Seeding database with sample data..."
+      - docker-compose exec postgres psql -U postgres -d starterkit -f /docker-entrypoint-initdb.d/99-seed.sql
+      - echo "Database seeded successfully!"
+
+  db:clean:
+    desc: "Stop and remove PostgreSQL container and volumes"
+    cmds:
+      - docker-compose down -v
+      - docker-compose rm -f postgres
+
+  # Development environment
+  dev:env:
+    desc: "Start complete development environment (database + tools)"
+    cmds:
+      - docker-compose --profile tools up -d
+      - echo "PostgreSQL available at localhost:5432"
+      - echo "Swagger UI available at http://localhost:8082"
+
+  dev:env:stop:
+    desc: "Stop development environment"
+    cmds:
+      - docker-compose --profile tools down
+
+  # Docker tasks
+  docker:clean:
+    desc: "Fix Docker network issues by cleaning up orphaned resources"
+    cmds:
+      - echo "Stopping all services..."
+      - docker-compose down -v
+      - echo "Cleaning up orphaned networks..."
+      - docker network prune -f
+      - echo "Cleaning up orphaned containers and system resources..."
+      - docker container prune -f
+      - docker system prune -f
+
+  # Utility tasks
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - task: backend:clean
+      - task: frontend:clean
+      - rm -rf .task
+
+  check:
+    desc: "Run all checks (format, vet, lint, test) for backend and frontend"
+    cmds:
+      - task: backend:format:check
+      - task: backend:vet
+      - task: backend:lint
+      - task: backend:test
+      - task: frontend:format:check
+      - task: frontend:lint
+      - task: frontend:typecheck
+      - task: frontend:test

@@ -1,0 +1,192 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  POSTGRES_DSN: "host={{.DB_HOST | default \"localhost\"}} port={{.DB_PORT | default \"5432\"}} user={{.DB_USER | default \"postgres\"}} password={{.DB_PASSWORD}} dbname={{.DB_NAME | default \"starterkit\"}} sslmode={{.DB_SSLMODE | default \"disable\"}}"
+
+tasks:
+  # Tool installation
+  install-tools:
+    desc: "Install required development tools"
+    cmds:
+      - go install github.com/air-verse/air@latest
+      - go install github.com/pressly/goose/v3/cmd/goose@latest
+      - go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    status:
+      - which air
+      - which goose
+      - which sqlc
+      - which golangci-lint
+
+  # Development tasks
+  dev:
+    desc: "Run the backend development server with live-reloading (starts database if needed)"
+    dir: ./api
+    deps: [migrate]
+    cmds:
+      - air
+  
+  run:
+    desc: "Run the server without live-reloading"
+    dir: ./api
+    cmds:
+      - go run ./cmd/server
+
+  # Build tasks
+  build:
+    desc: "Build the production binary"
+    dir: ./api
+    cmds:
+      - CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/server ./cmd/server
+    sources:
+      - ./**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - ./bin/server
+
+  # Test tasks
+  test:
+    desc: "Run all backend tests"
+    dir: ./api
+    cmds:
+      - go test -v -race -coverprofile=coverage.out ./...
+
+  test:unit:
+    desc: "Run backend unit tests only"
+    dir: ./api
+    cmds:
+      - go test -v -race -short ./...
+
+  test:integration:
+    desc: "Run backend integration tests"
+    dir: ./api
+    cmds:
+      - go test -v -race -run Integration ./...
+
+  test:coverage:
+    desc: "Run backend tests with coverage report"
+    dir: ./api
+    cmds:
+      - go test -v -race -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - echo "Coverage report generated at coverage.html"
+
+  # Migration tasks (renamed to avoid conflict with db: tasks in main file)
+  migrate:
+    desc: "Apply all pending database migrations"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - ls
+      - goose -dir db/migrations postgres "{{.POSTGRES_DSN}}" up
+
+  migrate:down:
+    desc: "Rollback the last database migration"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - goose -dir db/migrations postgres "{{.POSTGRES_DSN}}" down
+
+  migrate:status:
+    desc: "Show migration status"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - goose -dir db/migrations postgres "{{.POSTGRES_DSN}}" status
+  
+  migrate:reset:
+    desc: "Reset database migrations"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - goose -dir db/migrations postgres "{{.POSTGRES_DSN}}" reset
+
+  migrate:create:
+    desc: "Create a new migration file (usage: task backend:migrate:create -- create_table_name)"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - goose -dir db/migrations create {{.CLI_ARGS}} sql
+
+  # Code generation tasks
+  generate:
+    desc: "Run all code generation"
+    deps: [generate:sqlc]
+
+  generate:sqlc:
+    desc: "Generate Go code from SQL queries"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - sqlc generate
+    sources:
+      - ./sql/**/*.sql
+      - ./sqlc.yaml
+    generates:
+      - ./internal/db/**/*.go
+
+  # Dependency management
+  deps:
+    desc: "Download and tidy Go dependencies"
+    dir: ./api
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  deps:update:
+    desc: "Update all Go dependencies"
+    dir: ./api
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  # Linting and formatting
+  lint:
+    desc: "Run backend linters"
+    dir: ./api
+    deps: [install-tools]
+    cmds:
+      - golangci-lint run ./...
+
+  format:
+    desc: "Format Go code"
+    dir: ./api
+    cmds:
+      - go fmt ./...
+  
+  format:check:
+    desc: "Check Format for Go code"
+    dir: ./api
+    cmds:
+      - test -z "$(go fmt ./...)"
+
+  vet:
+    desc: "Run go vet"
+    dir: ./api
+    cmds:
+      - go vet ./...
+
+  # Docker tasks
+  docker:build:
+    desc: "Build Docker image"
+    dir: ./api
+    cmds:
+      - docker build -t starterkit:latest .
+
+  docker:run:
+    desc: "Run Docker container"
+    dir: ./api
+    cmds:
+      - docker run -p 8080:8080 --env-file .env starterkit:latest
+
+  # Utility tasks
+  clean:
+    desc: "Clean build artifacts"
+    dir: ./api
+    cmds:
+      - rm -rf ./bin
+      - rm -rf ./tmp
+      - rm -f coverage.out coverage.html

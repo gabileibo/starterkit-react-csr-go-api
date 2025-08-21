@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: starterkit-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./hack/scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+      - ./hack/scripts/init-extensions.sql:/docker-entrypoint-initdb.d/02-init-extensions.sql:ro
+      - ./hack/scripts/seed.sql:/docker-entrypoint-initdb.d/99-seed.sql:ro
+    networks:
+      - starterkit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Swagger UI for API documentation
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: starterkit-swagger
+    environment:
+      SWAGGER_JSON: /app/openapi.json
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./api/openapi.json:/app/openapi.json:ro
+    networks:
+      - starterkit-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  starterkit-network:
+    driver: bridge
