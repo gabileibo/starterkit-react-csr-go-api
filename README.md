@@ -23,6 +23,9 @@ task frontend:install
 
 # Start development
 task dev
+
+# Seed DB (optional)
+task db:seed
 ```
 
 This starts:
